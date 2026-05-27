@@ -47,17 +47,36 @@ def detect_pdf_type_and_bank(pdf_path: str) -> Tuple[Literal["TEXT", "SCANNED"],
         # We return ("SCANNED", "UNKNOWN") and let the LLM vision parser parse it.
         return "SCANNED", "UNKNOWN"
     
-    # Check bank keywords (case-insensitive)
+    # Extract only the statement header (text before the transaction table)
+    # to avoid matching other banks mentioned inside transaction particulars.
+    import re
     lower_text = raw_text.lower()
-    
-    if "state bank of india" in lower_text or "sbi" in lower_text or "s.b.i" in lower_text:
+    header_text = lower_text
+    for marker in ["opening balance", "particulars", "tran date", "txn date", "value date"]:
+        if marker in lower_text:
+            header_text = lower_text.split(marker)[0]
+            break
+            
+    if re.search(r"\bstate bank of india\b|\bsbi\b|\bs\.b\.i\b", header_text):
         bank_name = "SBI"
-    elif "hdfc bank" in lower_text or "hdfc" in lower_text:
+    elif re.search(r"\bhdfc bank\b|\bhdfc\b", header_text):
         bank_name = "HDFC"
-    elif "icici bank" in lower_text or "icici" in lower_text:
+    elif re.search(r"\bicici bank\b|\bicici\b", header_text):
         bank_name = "ICICI"
-    elif "axis bank" in lower_text or "axis" in lower_text:
+    elif re.search(r"\baxis bank\b|\baxis\b", header_text):
         bank_name = "Axis"
+    else:
+        # Fallback to full text if not found in header
+        if re.search(r"\bstate bank of india\b|\bsbi\b|\bs\.b\.i\b", lower_text):
+            bank_name = "SBI"
+        elif re.search(r"\bhdfc bank\b|\bhdfc\b", lower_text):
+            bank_name = "HDFC"
+        elif re.search(r"\bicici bank\b|\bicici\b", lower_text):
+            bank_name = "ICICI"
+        elif re.search(r"\baxis bank\b|\baxis\b", lower_text):
+            bank_name = "Axis"
     
     logger.info(f"PDF Detection Result: Type=TEXT, Bank={bank_name}")
     return "TEXT", bank_name
+
+

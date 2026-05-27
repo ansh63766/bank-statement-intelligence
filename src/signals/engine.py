@@ -268,9 +268,11 @@ def compute_financial_signals(parsed_statement: ParsedStatement) -> Tuple[Income
         if any(kw in desc_lower for kw in od_keywords):
             overdraft_occurrences += 1
             
-        # Check NSF transaction declines
-        if any(kw in desc_lower for kw in nsf_keywords):
+        # Check NSF transaction declines (use regex word boundary for 'nsf' to avoid subword matches like 'fttransf')
+        import re
+        if any(kw in desc_lower for kw in ["declined", "insufficient balance", "failed txn", "insufficient fund"]) or re.search(r"\bnsf\b", desc_lower):
             nsf_count += 1
+
             
     negative_signals = NegativeSignals(
         cheque_bounce_count=cheque_bounce_count,
